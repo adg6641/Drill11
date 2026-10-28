@@ -33,7 +33,7 @@ class Idle(BoyState):
 class Run(BoyState):
     def update(self, dt):
         self.boy.animate(dt)
-        self.boy.x += self.boy.face_dir * self.boy.RUN_SPEED
+        self.boy.x += self.boy.face_dir * self.boy.RUN_SPEED * dt
         self.boy.clamp_to_screen()
 
     def draw(self):
@@ -51,7 +51,7 @@ class Sleep(BoyState):
 class Boy:
     SCREEN_WIDTH = 800
     SPRITE_SIZE = 100
-    RUN_SPEED = 10  # pixels per update in the starter loop
+    RUN_SPEED = 250.0  # pixels per second (the original 10 pixels / 0.04 s)
     ANIMATION_FPS = 10.0
     IDLE_TIMEOUT = 5.0
 
@@ -101,7 +101,7 @@ class Boy:
             self.face_dir = next(iter(self.pressed_directions))
 
     def animate(self, dt):
-        self.frame = (self.frame + 1) % 8
+        self.frame = (self.frame + self.ANIMATION_FPS * dt) % 8
 
     def clamp_to_screen(self):
         half_width = self.SPRITE_SIZE / 2
