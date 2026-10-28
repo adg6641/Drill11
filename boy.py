@@ -69,7 +69,21 @@ class AutoRun(BoyState):
             return
         self.boy.animate(dt)
         self.boy.x += self.boy.face_dir * self.boy.speed * dt
-        self.boy.clamp_to_screen()
+        left = self.boy.SPRITE_SIZE * self.boy.scale / 2
+        right = self.boy.SCREEN_WIDTH - left
+        # Reflect overshoot as well, so a slow frame cannot leave the screen.
+        while self.boy.x < left or self.boy.x > right:
+            if self.boy.x > right:
+                self.boy.x = 2 * right - self.boy.x
+                self.boy.face_dir = -1
+            elif self.boy.x < left:
+                self.boy.x = 2 * left - self.boy.x
+                self.boy.face_dir = 1
+        if self.boy.x <= left:
+            self.boy.face_dir = 1
+        elif self.boy.x >= right:
+            self.boy.face_dir = -1
+        # This is an internal action, not a state transition: keep the timer.
 
     def draw(self):
         self.boy.draw_animation(100)
