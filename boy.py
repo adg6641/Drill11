@@ -33,7 +33,7 @@ class Idle(BoyState):
 class Run(BoyState):
     def update(self, dt):
         self.boy.animate(dt)
-        self.boy.x += self.boy.face_dir * self.boy.RUN_SPEED * dt
+        self.boy.x += self.boy.face_dir * self.boy.speed * dt
         self.boy.clamp_to_screen()
 
     def draw(self):
@@ -54,16 +54,19 @@ class AutoRun(BoyState):
         self.boy.auto_run_started_at = get_time()
         self.boy.pressed_directions.clear()
         self.boy.is_invulnerable = True
+        self.boy.speed = self.boy.AUTO_RUN_SPEED
+        self.boy.clamp_to_screen()
 
     def exit(self):
         self.boy.is_invulnerable = False
+        self.boy.speed = self.boy.RUN_SPEED
 
     def update(self, dt):
         if get_time() - self.boy.auto_run_started_at >= self.boy.AUTO_RUN_DURATION:
             self.boy.finish_auto_run()
             return
         self.boy.animate(dt)
-        self.boy.x += self.boy.face_dir * self.boy.RUN_SPEED * dt
+        self.boy.x += self.boy.face_dir * self.boy.speed * dt
         self.boy.clamp_to_screen()
 
     def draw(self):
@@ -77,6 +80,7 @@ class Boy:
     ANIMATION_FPS = 10.0
     IDLE_TIMEOUT = 5.0
     AUTO_RUN_DURATION = 5.0
+    AUTO_RUN_SPEED = RUN_SPEED * 2.0
 
     def __init__(self):
         self.x, self.y = 400.0, 85.0
@@ -84,6 +88,7 @@ class Boy:
         self.face_dir = 1
         self.pressed_directions = set()
         self.is_invulnerable = False
+        self.speed = self.RUN_SPEED
         self.image = load_image(str(Path(__file__).with_name('animation_sheet.png')))
         self.last_updated_at = get_time()
         self.states = {
@@ -147,7 +152,7 @@ class Boy:
             self.stop_run()
 
     def animate(self, dt):
-        self.frame = (self.frame + self.ANIMATION_FPS * dt) % 8
+        self.frame = (self.frame + self.ANIMATION_FPS * (self.speed / self.RUN_SPEED) * dt) % 8
 
     def clamp_to_screen(self):
         half_width = self.SPRITE_SIZE / 2
