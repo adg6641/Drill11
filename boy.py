@@ -1,28 +1,73 @@
 from math import pi
+from pathlib import Path
 
 from pico2d import get_time, load_image
 from transitions import Machine
 
 
+class BoyState:
+    def __init__(self, boy):
+        self.boy = boy
+
+    def enter(self):
+        self.boy.frame = 0.0
+
+    def exit(self):
+        pass
+
+
+class Idle(BoyState):
+    def enter(self):
+        super().enter()
+        self.boy.idle_started_at = get_time()
+
+    def update(self, dt):
+        self.boy.animate(dt)
+        if get_time() - self.boy.idle_started_at >= self.boy.IDLE_TIMEOUT:
+            self.boy.sleep()
+
+    def draw(self):
+        self.boy.draw_animation(300)
+
+
+class Run(BoyState):
+    def update(self, dt):
+        self.boy.animate(dt)
+        self.boy.x += self.boy.face_dir * self.boy.RUN_SPEED
+        self.boy.clamp_to_screen()
+
+    def draw(self):
+        self.boy.draw_animation(100)
+
+
+class Sleep(BoyState):
+    def update(self, dt):
+        pass
+
+    def draw(self):
+        self.boy.draw_animation(300, rotation=pi / 2, y=self.boy.y - 30)
+
+
 class Boy:
     SCREEN_WIDTH = 800
-    HALF_WIDTH = 50
-    RUN_SPEED = 10
+    SPRITE_SIZE = 100
+    RUN_SPEED = 10  # pixels per update in the starter loop
+    ANIMATION_FPS = 10.0
+    IDLE_TIMEOUT = 5.0
 
     def __init__(self):
-        self.x, self.y = 400, 85
-        self.frame = 0
+        self.x, self.y = 400.0, 85.0
+        self.frame = 0.0
         self.face_dir = 1
         self.pressed_directions = set()
-        self.image = load_image('animation_sheet.png')
-        self.idle_started_at = get_time()
-
+        self.image = load_image(str(Path(__file__).with_name('animation_sheet.png')))
+        self.last_updated_at = get_time()
+        self.states = {'IDLE': Idle(self), 'RUN': Run(self), 'SLEEP': Sleep(self)}
         self.machine = Machine(
             model=self,
             states=[
-                {'name': 'IDLE', 'on_enter': 'start_idle_timer'},
-                {'name': 'RUN', 'on_enter': 'start_run_animation'},
-                'SLEEP',
+                {'name': name, 'on_enter': state.enter, 'on_exit': state.exit}
+                for name, state in self.states.items()
             ],
             initial='IDLE',
             auto_transitions=False,
@@ -33,12 +78,8 @@ class Boy:
                 {'trigger': 'wake', 'source': 'SLEEP', 'dest': 'IDLE'},
             ],
         )
-
-    def start_idle_timer(self):
-        self.idle_started_at = get_time()
-
-    def start_run_animation(self):
-        self.frame = 0
+        # Machine sets its initial state without calling on_enter.
+        self.states[self.state].enter()
 
     def press_direction(self, direction):
         if self.state not in ('IDLE', 'RUN', 'SLEEP'):
@@ -59,30 +100,28 @@ class Boy:
         elif direction == self.face_dir:
             self.face_dir = next(iter(self.pressed_directions))
 
-    def update(self):
-        if self.state == 'IDLE':
-            self.frame = (self.frame + 1) % 8
-            if get_time() - self.idle_started_at >= 5:
-                self.sleep()
-        elif self.state == 'RUN':
-            self.frame = (self.frame + 1) % 8
-            self.x = max(
-                self.HALF_WIDTH,
-                min(self.SCREEN_WIDTH - self.HALF_WIDTH,
-                    self.x + self.face_dir * self.RUN_SPEED),
-            )
+    def animate(self, dt):
+        self.frame = (self.frame + 1) % 8
+
+    def clamp_to_screen(self):
+        half_width = self.SPRITE_SIZE / 2
+        self.x = max(half_width, min(self.SCREEN_WIDTH - half_width, self.x))
+
+    def update(self, dt=None):
+        now = get_time()
+        if dt is None:
+            dt = now - self.last_updated_at
+        self.last_updated_at = now
+        self.states[self.state].update(max(0.0, dt))
+
+    def draw_animation(self, row, rotation=0, y=None):
+        self.image.clip_composite_draw(
+            int(self.frame) * self.SPRITE_SIZE, row,
+            self.SPRITE_SIZE, self.SPRITE_SIZE,
+            rotation, 'h' if self.face_dir < 0 else '',
+            self.x, self.y if y is None else y,
+            self.SPRITE_SIZE, self.SPRITE_SIZE,
+        )
 
     def draw(self):
-        if self.state == 'IDLE':
-            self.image.clip_draw(self.frame * 100, 300, 100, 100, self.x, self.y)
-        elif self.state == 'RUN':
-            self.image.clip_composite_draw(
-                self.frame * 100, 100, 100, 100,
-                0, 'h' if self.face_dir < 0 else '',
-                self.x, self.y, 100, 100,
-            )
-        elif self.state == 'SLEEP':
-            self.image.clip_composite_draw(
-                self.frame * 100, 300, 100, 100,
-                pi / 2, '', self.x, self.y - 30, 100, 100,
-            )
+        self.states[self.state].draw()
