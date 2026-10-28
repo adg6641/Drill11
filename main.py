@@ -1,6 +1,6 @@
 from pico2d import (
     SDL_KEYDOWN, SDL_KEYUP, SDL_QUIT,
-    SDLK_ESCAPE, SDLK_LEFT, SDLK_RIGHT, SDLK_SPACE,
+    SDLK_ESCAPE, SDLK_LEFT, SDLK_RIGHT, SDLK_SPACE, SDLK_a,
     clear_canvas, close_canvas, delay, get_events, get_time,
     open_canvas, update_canvas,
 )
@@ -15,6 +15,8 @@ def handle_events():
         if event.type == SDL_QUIT:
             running = False
         elif event.type == SDL_KEYDOWN:
+            if getattr(event, 'repeat', 0):
+                continue
             if event.key == SDLK_ESCAPE:
                 running = False
             elif event.key == SDLK_SPACE and boy.state == 'SLEEP':
@@ -23,6 +25,8 @@ def handle_events():
                 boy.press_direction(-1)
             elif event.key == SDLK_RIGHT:
                 boy.press_direction(1)
+            elif event.key == SDLK_a:
+                boy.request_auto_run()
         elif event.type == SDL_KEYUP:
             if event.key == SDLK_LEFT:
                 boy.release_direction(-1)

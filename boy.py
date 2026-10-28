@@ -48,6 +48,24 @@ class Sleep(BoyState):
         self.boy.draw_animation(300, rotation=pi / 2, y=self.boy.y - 30)
 
 
+class AutoRun(BoyState):
+    def enter(self):
+        super().enter()
+        self.boy.pressed_directions.clear()
+        self.boy.is_invulnerable = True
+
+    def exit(self):
+        self.boy.is_invulnerable = False
+
+    def update(self, dt):
+        self.boy.animate(dt)
+        self.boy.x += self.boy.face_dir * self.boy.RUN_SPEED * dt
+        self.boy.clamp_to_screen()
+
+    def draw(self):
+        self.boy.draw_animation(100)
+
+
 class Boy:
     SCREEN_WIDTH = 800
     SPRITE_SIZE = 100
@@ -60,9 +78,13 @@ class Boy:
         self.frame = 0.0
         self.face_dir = 1
         self.pressed_directions = set()
+        self.is_invulnerable = False
         self.image = load_image(str(Path(__file__).with_name('animation_sheet.png')))
         self.last_updated_at = get_time()
-        self.states = {'IDLE': Idle(self), 'RUN': Run(self), 'SLEEP': Sleep(self)}
+        self.states = {
+            'IDLE': Idle(self), 'RUN': Run(self),
+            'SLEEP': Sleep(self), 'AUTORUN': AutoRun(self),
+        }
         self.machine = Machine(
             model=self,
             states=[
@@ -76,10 +98,17 @@ class Boy:
                 {'trigger': 'stop_run', 'source': 'RUN', 'dest': 'IDLE'},
                 {'trigger': 'sleep', 'source': 'IDLE', 'dest': 'SLEEP'},
                 {'trigger': 'wake', 'source': 'SLEEP', 'dest': 'IDLE'},
+                {'trigger': 'auto_run', 'source': 'IDLE', 'dest': 'AUTORUN'},
             ],
         )
         # Machine sets its initial state without calling on_enter.
         self.states[self.state].enter()
+
+    def request_auto_run(self):
+        if self.state != 'IDLE':
+            return False
+        self.auto_run()
+        return True
 
     def press_direction(self, direction):
         if direction in self.pressed_directions:
@@ -91,6 +120,8 @@ class Boy:
         if direction not in self.pressed_directions:
             return
         self.pressed_directions.remove(direction)
+        if self.state == 'AUTORUN':
+            return  # Only a direction key DOWN cancels AutoRun.
         self.apply_direction_input()
 
     def apply_direction_input(self):
