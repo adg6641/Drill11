@@ -55,11 +55,13 @@ class AutoRun(BoyState):
         self.boy.pressed_directions.clear()
         self.boy.is_invulnerable = True
         self.boy.speed = self.boy.AUTO_RUN_SPEED
+        self.boy.scale = self.boy.AUTO_RUN_SCALE
         self.boy.clamp_to_screen()
 
     def exit(self):
         self.boy.is_invulnerable = False
         self.boy.speed = self.boy.RUN_SPEED
+        self.boy.scale = 1.0
 
     def update(self, dt):
         if get_time() - self.boy.auto_run_started_at >= self.boy.AUTO_RUN_DURATION:
@@ -81,6 +83,7 @@ class Boy:
     IDLE_TIMEOUT = 5.0
     AUTO_RUN_DURATION = 5.0
     AUTO_RUN_SPEED = RUN_SPEED * 2.0
+    AUTO_RUN_SCALE = 1.6
 
     def __init__(self):
         self.x, self.y = 400.0, 85.0
@@ -89,6 +92,7 @@ class Boy:
         self.pressed_directions = set()
         self.is_invulnerable = False
         self.speed = self.RUN_SPEED
+        self.scale = 1.0
         self.image = load_image(str(Path(__file__).with_name('animation_sheet.png')))
         self.last_updated_at = get_time()
         self.states = {
@@ -155,7 +159,7 @@ class Boy:
         self.frame = (self.frame + self.ANIMATION_FPS * (self.speed / self.RUN_SPEED) * dt) % 8
 
     def clamp_to_screen(self):
-        half_width = self.SPRITE_SIZE / 2
+        half_width = self.SPRITE_SIZE * self.scale / 2
         self.x = max(half_width, min(self.SCREEN_WIDTH - half_width, self.x))
 
     def update(self, dt=None):
@@ -166,12 +170,14 @@ class Boy:
         self.states[self.state].update(max(0.0, dt))
 
     def draw_animation(self, row, rotation=0, y=None):
+        size = self.SPRITE_SIZE * self.scale
+        # Keep the sprite's feet at the same ground level when it grows.
+        draw_y = self.y + 35 * (self.scale - 1) if y is None else y
         self.image.clip_composite_draw(
             int(self.frame) * self.SPRITE_SIZE, row,
             self.SPRITE_SIZE, self.SPRITE_SIZE,
             rotation, 'h' if self.face_dir < 0 else '',
-            self.x, self.y if y is None else y,
-            self.SPRITE_SIZE, self.SPRITE_SIZE,
+            self.x, draw_y, size, size,
         )
 
     def draw(self):
