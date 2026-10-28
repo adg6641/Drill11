@@ -99,7 +99,7 @@ class Boy:
             initial='IDLE',
             auto_transitions=False,
             transitions=[
-                {'trigger': 'run', 'source': ['IDLE', 'SLEEP'], 'dest': 'RUN'},
+                {'trigger': 'run', 'source': ['IDLE', 'SLEEP', 'AUTORUN'], 'dest': 'RUN'},
                 {'trigger': 'stop_run', 'source': 'RUN', 'dest': 'IDLE'},
                 {'trigger': 'sleep', 'source': 'IDLE', 'dest': 'SLEEP'},
                 {'trigger': 'wake', 'source': 'SLEEP', 'dest': 'IDLE'},
@@ -117,6 +117,12 @@ class Boy:
         return True
 
     def press_direction(self, direction):
+        if self.state == 'AUTORUN':
+            # Cancellation obeys the newly pressed direction, not stale keys.
+            self.pressed_directions = {direction}
+            self.face_dir = direction
+            self.run()
+            return
         if direction in self.pressed_directions:
             return  # Ignore operating-system key repeat.
         self.pressed_directions.add(direction)
