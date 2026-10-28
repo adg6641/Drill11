@@ -51,6 +51,7 @@ class Sleep(BoyState):
 class AutoRun(BoyState):
     def enter(self):
         super().enter()
+        self.boy.auto_run_started_at = get_time()
         self.boy.pressed_directions.clear()
         self.boy.is_invulnerable = True
 
@@ -58,6 +59,9 @@ class AutoRun(BoyState):
         self.boy.is_invulnerable = False
 
     def update(self, dt):
+        if get_time() - self.boy.auto_run_started_at >= self.boy.AUTO_RUN_DURATION:
+            self.boy.finish_auto_run()
+            return
         self.boy.animate(dt)
         self.boy.x += self.boy.face_dir * self.boy.RUN_SPEED * dt
         self.boy.clamp_to_screen()
@@ -72,6 +76,7 @@ class Boy:
     RUN_SPEED = 250.0  # pixels per second (the original 10 pixels / 0.04 s)
     ANIMATION_FPS = 10.0
     IDLE_TIMEOUT = 5.0
+    AUTO_RUN_DURATION = 5.0
 
     def __init__(self):
         self.x, self.y = 400.0, 85.0
@@ -99,6 +104,7 @@ class Boy:
                 {'trigger': 'sleep', 'source': 'IDLE', 'dest': 'SLEEP'},
                 {'trigger': 'wake', 'source': 'SLEEP', 'dest': 'IDLE'},
                 {'trigger': 'auto_run', 'source': 'IDLE', 'dest': 'AUTORUN'},
+                {'trigger': 'finish_auto_run', 'source': 'AUTORUN', 'dest': 'IDLE'},
             ],
         )
         # Machine sets its initial state without calling on_enter.
