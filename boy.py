@@ -82,23 +82,26 @@ class Boy:
         self.states[self.state].enter()
 
     def press_direction(self, direction):
-        if self.state not in ('IDLE', 'RUN', 'SLEEP'):
-            return
-
+        if direction in self.pressed_directions:
+            return  # Ignore operating-system key repeat.
         self.pressed_directions.add(direction)
-        self.face_dir = direction
-        if self.state in ('IDLE', 'SLEEP'):
-            self.run()
+        self.apply_direction_input()
 
     def release_direction(self, direction):
-        self.pressed_directions.discard(direction)
-        if self.state != 'RUN':
+        if direction not in self.pressed_directions:
             return
+        self.pressed_directions.remove(direction)
+        self.apply_direction_input()
 
-        if not self.pressed_directions:
+    def apply_direction_input(self):
+        # Both keys cancel each other. Releasing one resumes the other direction.
+        direction = sum(self.pressed_directions)
+        if direction:
+            self.face_dir = direction
+            if self.state in ('IDLE', 'SLEEP'):
+                self.run()
+        elif self.state == 'RUN':
             self.stop_run()
-        elif direction == self.face_dir:
-            self.face_dir = next(iter(self.pressed_directions))
 
     def animate(self, dt):
         self.frame = (self.frame + self.ANIMATION_FPS * dt) % 8
